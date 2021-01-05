@@ -5,7 +5,7 @@ Requires Psychtoolbox-3 (http://psychtoolbox.org/)
 
 LTP_Baseline.m is used for pre-tetanus and post-tetanus blocks
 
-LTP_Horizontal_Tetanus.m and LTP_Vertical_Tetanus.m are for administering the high-frequency visual stimulation or photic tetanus. Using either horizontal or vertical sine-gratings allows for the testing of specificity of input
+LTP_Horizontal_Tetanus.m and LTP_Vertical_Tetanus.m are for administering the high-frequency visual stimulation or photic tetanus. Using either horizontal or vertical sine-gratings allows for the testing of specificity of input.
 
 This code implements the paradigm as described in: 
 
@@ -17,7 +17,7 @@ TO USE:
 
 Edit the variables in the % Essential Personalisation % section to ensure the paradigm provides the correct stimulus size and presentation rate for your system. Only edit variables in the other sections if you know what you are doing!
 
-I recommend breakpointing and the stimlus properties yourself (in particular size and presentation rate) after you have personaised the paradigm as these are vital.
+I recommend breakpointing variables and checking the stimulus properties yourself (in particular size and presentation rate as these are vital) after you have personalised the paradigm.
 
 
 For more information see:
