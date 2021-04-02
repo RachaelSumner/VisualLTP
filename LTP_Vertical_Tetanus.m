@@ -6,6 +6,7 @@
 
 % EDITED:
 % Adapted for triggers using ppdev_mex. (Rachael Sumner, March 2020)
+% Fixed issue with isi calculation. (Rachael Sumner, April 2021)
 
 
 % NOTES:
@@ -58,11 +59,11 @@ screen_refresh = 1/hz; %calculates your screen refresh rate in seconds
 %%
 %TO REPORT YOUR EXACT STIMULUS DURATION AND ISI USE THESE:
 
-max_fit_stimulus_duration =  floor(0.033/screen_refresh); %lock stimulus duration to nearest number of screen refreshes possible to achieve ~9 Hz
+max_fit_stimulus_duration =  round(0.033/screen_refresh); %lock stimulus duration to nearest number of screen refreshes possible to achieve ~9 Hz
 stimulus_duration = max_fit_stimulus_duration * screen_refresh;
 
-max_fit_isi = floor((1/9)/screen_refresh); %lock isi to nearest number of screen refreshes possible to achieve ~9 Hz 
-isi = max_fit_isi * screen_refresh; 
+max_fit_isi = round((1/9)/screen_refresh); %lock isi to nearest number of screen refreshes possible to achieve ~9 Hz 
+isi = (max_fit_isi * screen_refresh) - stimulus_duration; 
 % jitter use multiples of stimulus duration
 
 %%    
