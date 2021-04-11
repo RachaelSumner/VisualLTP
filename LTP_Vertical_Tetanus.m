@@ -66,6 +66,22 @@ max_fit_isi = round((1/9)/screen_refresh); %lock isi to nearest number of screen
 isi = (max_fit_isi * screen_refresh) - stimulus_duration; 
 % jitter use multiples of stimulus duration
 
+%create jitter according to isi 
+        %built in pseudorandom jitter +/- ~16 ms
+
+% FOR 144 HZ MONITOR
+
+T_isi_duration_2 = isi - stimulus_duration/(round(0.5 * max_fit_stimulus_duration));
+T_isi_duration_3 = isi + stimulus_duration/(round(0.5 * max_fit_stimulus_duration));
+
+
+% FOR A 60 Hz MONITOR
+
+% T_isi_duration_2 = isi - stimulus_duration/2;
+%T_isi_duration_3 = isi + stimulus_duration/2;
+
+
+
 %%    
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%% PARADIGM %%%%%%%%%%%%%%%%
@@ -93,18 +109,6 @@ grey = white / 2;  % Computes the CLUT color code for grey.
 
 [xCenter, yCenter] = RectCenter(windowRect); %Finds centre of the screen - Used in Screen('DrawDots',...) for fixation dot
 
-
-
-%%%% TRIAL SPECIFICATIONS
-T_num_trial_per_con = 1000;
-T_num_conditions = 1;
-T_num_trials = T_num_trial_per_con * T_num_conditions;
-
-T_isi_duration_1 = isi;
-T_isi_duration_2 = isi - stimulus_duration/(round(0.5 * max_fit_stimulus_duration));
-T_isi_duration_3 = isi + stimulus_duration/(round(0.5 * max_fit_stimulus_duration));
-%create jitter according to isi
-        %built in pseudorandom jitter +/- ~16 ms 
 
 PauseKey = 'p';
 QuitKey = 'q';
