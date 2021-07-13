@@ -7,6 +7,7 @@
 %EDITED:
 % Adapted for triggers using ppdev_mex. (Rachael Sumner, March 2020)
 % Fixed issue with isi calculation. (Rachael Sumner, April 2021)
+% Replace use of WaitSecs (Suresh Muthukumaraswamy, April 2021)
 
 
 % NOTES:
@@ -19,66 +20,95 @@
 % Requires https://github.com/widmann/ppdev-mex for triggers, else add your
 % own and remove all trigger related code.
 
+% To report ISI use your own trigger output - variables for ISI have a
+% buffer
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%      SCRIPT PERSONALISATION     %%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+clear all; close all; 
+screen_width = 29.8; %Size of screen - will be used to ensure stimuli subtend ~8 degrees of visual angle.
+%These calculations are based on sitting 1m away from 53.3cm wide screen
+%screen_height = 29.8/1.778; %Might be needed depending on monitor aspect ratio
+
+target = 1; %frequency of stimulus
+hz = 60;   %monitor refresh rate CHANGE TO YOUR SCREEN THEN CHANGE JITTER CYCLES
+add_jitter = 1; %1 = yes 0 - no jitter
+jitter_cycles = 2; %how many refreshes to add to make stimulus jitter - a good value depends on hz (5 for 144Hz screen)
+B_num_trials = 240; %number of flashes of the stimulus
+B_num_trial_per_con = 120; %number of each sti
+on = 0.033 %length of time stimulus on for (might need adjusting depending on hz
+debug = 0; %set to 0 or 1 
+
+%Derived values
+cycle_time = 1/hz; %length of one refresh in seconds
+buffer_time =  cycle_time /2; %Half of a refresh cycle - used for queueing flips 
+
+n_refresh = (1/ target) / cycle_time;   %number of refresh rates stim on for (144 is a multiple of 9 - others might need adjusting/rounding) 
+isi = (n_refresh * cycle_time)- buffer_time %isi time - buffer
+
+on_time = (ceil((on / cycle_time)) * cycle_time) - buffer_time; %on_time - buffer - might need adjusting for monitor
 
 
-%%
+%%%% TRIAL SPECIFICATIONS
+
+B_isi_duration_1 = isi;
+B_isi_duration_2 = isi - (cycle_time * jitter_cycles); % add jitter
+B_isi_duration_3 = isi + (cycle_time * jitter_cycles); % sub jitter
+
+TrialTypes = ([1 2]);
+AllTrials = repmat(TrialTypes, 1, B_num_trial_per_con); 
+AllTrials = Shuffle(AllTrials);
+
+
+%create jitter according to isi -might need adjusting
+if add_jitter ==1 
+  temp =  [repmat(B_isi_duration_1,1,3) B_isi_duration_2  B_isi_duration_3]; %3 steady, 1 up, 1 down  = packets of 5
+  B_isi_vector= []
+  
+  temp = repmat(temp, 1, 250);
+  randomiser = randperm(length(temp));
+  B_isi_vector = temp(randomiser);
+  
+else %no jitter
+    B_isi_vector = ones([1 B_num_trials]) * isi;
+end
+%plot(T_isi_vector)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%% PARADIGM %%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%From here things should be reasonably hardware-independent
 PsychDefaultSetup(2);
 
 % Trigger setup % 
 
 try
-    ppdev_mex('Open',1); %initilise triggering
+    ppdev_mex('Open',1); %initialise triggering
 catch
     warning('ppdev_mex did not execute correctly - Any triggers will not work'); 
-end
-
-%               %
-
-%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%     ESSENTIAL PERSONALISATION   %%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% Change values according to screen specifications in order to calculate stimulus
-% dimensions and flicker rate
-
-screen_width = 29.8; % enter in degrees. Visual angle of screen (degrees) assumes sitting 1m away from 53.3cm wide screen
-% screen_height = 29.8/1.778; %enter in degrees %Unused when stimulus is a circle 
-% will be used to ensure stimuli subtend ~8 degrees of visual angle
-
-hz = 144; %screen refresh rate 
-screen_refresh = 1/hz; %calculates your screen refresh rate in seconds
-% will be used to calculate: 
-    % stimulus duration (as close to 33ms as possible)
-    % isi (as close to 1 Hz as possible) 
-
-    
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%% 
-%%% TO REPORT YOUR EXACT STIMULUS DURATION AND ISI USE THESE:
-
-max_fit_stimulus_duration =  round(0.033/screen_refresh); %lock stimulus duration to nearest number of screen refreshes possible to achieve ~1 Hz
-stimulus_duration = max_fit_stimulus_duration * screen_refresh;
-
-max_fit_isi = round(1/screen_refresh); %lock isi to nearest number of screen refreshes possible to achieve ~1 Hz 
-isi = (max_fit_isi * screen_refresh) - stimulus_duration; 
-% jitter use multiples of stimulus duration
-
-
-%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%% PARADIGM %%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%%%%BASIC SCREEN SETUP
+end 
+%% %%%BASIC SCREEN SETUP
 Priority(1);
 ListenChar(2); %prevent keyboard input going to the MATLAB window
 
 screens = Screen('Screens'); %For projecting to external screen. Get the number of screens in the computer setup
 screenNumber = max(screens); %Can change to 0 for single screen. Otherwise displays on the most external screen (grab max number)
 
-[window, windowRect] = Screen('OpenWindow', screenNumber);
+if debug
+    [window, windowRect] = Screen('OpenWindow', screenNumber,[],[0 0 300 300]); %useful for debugging
+else
+    [window, windowRect] = Screen('OpenWindow', screenNumber);
+end
+
+actualhz=Screen('FrameRate', window); %Refresh rate
+
+if abs((actualhz - hz)) > 1
+   error('monitor refresh wrong') 
+end
+
 HideCursor;
 
 ScreenRect = Screen ('Rect', window);
@@ -92,21 +122,6 @@ grey = white / 2;  % Computes the CLUT color code for grey.
 
 [xCenter, yCenter] = RectCenter(windowRect); %Finds centre of the screen - Used in Screen('DrawDots',...) for fixation dot
 
-
-%%%% TRIAL SPECIFICATIONS
-B_num_trial_per_con = 120;
-B_num_conditions = 2;
-B_num_trials = B_num_trial_per_con * B_num_conditions;
-
-%create jitter according to isi
-        %built in pseudorandom jitter +/- 1&2 * stimulus_duration (0 to
-        %~66ms)
-        
-B_isi_jitter_1 = isi;
-B_isi_jitter_2 = isi + stimulus_duration;
-B_isi_jitter_3 = isi + 2 * stimulus_duration;
-B_isi_jitter_4 = isi - stimulus_duration;
-B_isi_jitter_5 = isi - 2 * stimulus_duration;
 
 PauseKey = 'p';
 QuitKey = 'q';
@@ -137,50 +152,35 @@ HorizontalGrating = Screen('MakeTexture', window, gratingImage, [], [], [], 90);
 %%%%TASK
 Screen ('FillRect', window, grey);
 Screen('DrawDots', window, [xCenter; yCenter], 10, [255 0 0], [], 2);
-Screen('Flip', window);
-WaitSecs(1);
-
-
+[VBLTimestamp StimulusOnsetTime FlipTimestamp Missed Beampos] = Screen('Flip', window);
+when = VBLTimestamp + 1;
 
 for trial = 1:B_num_trials  
-    TrialTypes = ([1 2]);
-    AllTrials = repmat(TrialTypes, 1, B_num_trial_per_con); 
-    AllTrials = Shuffle(AllTrials);
+
     if AllTrials(trial) == 1
             Screen('DrawTexture', window, VerticalGrating)
             Screen('DrawDots', window, [xCenter; yCenter], 10, [255 0 0], [], 2);
-            Screen('Flip', window);
+            [VBLTimestamp1 StimulusOnsetTime FlipTimestamp Missed Beampos] = Screen('Flip', window, when);
             lptwrite(1, 1); % Send trigger
         else
             Screen('DrawTexture', window, HorizontalGrating)
             Screen('DrawDots', window, [xCenter; yCenter], 10, [255 0 0], [], 2);
-            Screen('Flip', window);
+            [VBLTimestamp1 StimulusOnsetTime FlipTimestamp Missed Beampos] = Screen('Flip', window, when);
             lptwrite(1, 2); % Send trigger
     end
-    WaitSecs(stimulus_duration)
-    
+    when = VBLTimestamp1 +on_time;
+
     Screen('DrawDots', window, [xCenter; yCenter], 10, [255 0 0], [], 2);
-    Screen('Flip', window);
-    lptwrite(1, 0); % Clear trigger
-    isiTypes = ([1 2 3 4 5]);
-    isi = repmat(isiTypes, 1, B_num_trial_per_con); 
-    isi = Shuffle(isi);
-    if isi(trial) == 1
-            WaitSecs(B_isi_jitter_1);     
-        elseif isi(trial) == 2
-                WaitSecs(B_isi_jitter_2);
-        elseif isi(trial) == 3
-                WaitSecs(B_isi_jitter_3);
-        elseif isi(trial) == 4
-                WaitSecs(B_isi_jitter_4);
-        elseif isi(trial) == 5
-                WaitSecs(B_isi_jitter_5);        
-    end
+    [VBLTimestamp2 StimulusOnsetTime FlipTimestamp Missed Beampos] = Screen('Flip', window, when) ;
+    
+    when = VBLTimestamp1 + B_isi_vector(trial); %set the next onset time for around the loop 
+
+    lptwrite(1, 0); % Port rest
     
     % Quit and pause key
     [keyIsDown, secs, keyCode] = KbCheck;
     if find(keyCode) == KbName(QuitKey)
-          ppdev_mex('Close',1); %Close port (for triggers)
+          ppdev_mex('Close',1); %Close port
           Screen ('CloseAll');
           ShowCursor;
           ListenChar(0);
@@ -197,7 +197,7 @@ Screen('Flip', window);
 WaitSecs(1);
 
 %%%%END
-ppdev_mex('Close',1); %Close port (for triggers)
+ppdev_mex('Close',1); %Close port
 Screen ('CloseAll');
 ShowCursor;
 ListenChar (0);
